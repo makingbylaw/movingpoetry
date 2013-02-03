@@ -59,7 +59,7 @@ void setup() {
   for (int i = words.length; i < buttons.length; i++) {
     
     // Create these along the bottom (variable x coordinate)
-    buttons[i] = new Button((i-words.length)*30+20, 450, 10, 10);
+    buttons[i] = new Button((i-words.length)*30+80, 450, 10, 10);
   }
 
   // Create the kinect controller
