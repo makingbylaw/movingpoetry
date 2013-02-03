@@ -1,82 +1,75 @@
 import SimpleOpenNI.*;
 SimpleOpenNI kinect;
+// NB: the data from openni comes upside down
+
+// Create an array of words that we will use for the poetry
+String[] words = new String[] { 
+  "away", 
+  "with", 
+  "strawberry", 
+  "beer", 
+  "to", 
+  "want", 
+  "dream", 
+  "fly", 
+  "of",
+  "you",
+  "make"
+  };
 
 // An array of buttons
-Button[] buttons = new Button[100];//[# of buttons]
+// to begin with this is the number of words + placeholders to hold these also
+Button[] buttons = new Button[words.length * 2];
+
+// The font we're using
 PFont font;
-int i;
-float p;
-float        zoomF =0.5f;
-float        rotX = radians(180);  // by default rotate the hole scene 180deg around the x-axis, 
-// the data from openni comes upside down
-float        rotY = radians(0);
-boolean      handsTrackFlag = false;
-boolean      handsTrackFlag1 = false;
-PVector      handVec = new PVector();
-PVector      handVec1 = new PVector();
-PVector      mapHandVec = new PVector();
+
+// Tracking flags
+boolean handsTrackFlag = false;
+PVector handVec = new PVector();
+PVector mapHandVec = new PVector();
 color handPointCol = color(255, 0, 0);
 
-ArrayList    handVecList = new ArrayList();
-int          handVecListSize = 30;
-String       lastGesture = "";
+ArrayList handVecList = new ArrayList();
+int handVecListSize = 30;
+String lastGesture = null;
 
 float[] theHandPos;
 
 int currButton = 0;//this what we are tracking
 int lastButton;//unless we get close to it
 
-
-
 void setup() {
   size(850, 700);
   smooth();
-
-  // A loop to evenly space out the buttons along the window
-  for (int i = 0; i < buttons.length; i ++) {
-    //   buttons[i] = new Button(i*100+25,height/2-25,50,50); //ex row
-
-    buttons[i] = new Button(44, i*40+100, 50, 30) ; //(x,y,w,h)column I want on left side
-  }
-
-  for (int i = 0; i < buttons.length; i += 10) {
-    //   buttons[i] = new Button(i*100+25,height/2-25,50,50); 
-
-  //  buttons[i] = new Button(i*50+10, 500, 50, 50) ; //(x,y,w,h)row I want 
-    buttons[i] = new Button(i*3+20, 450, 10, 10) ; //(x,y,w,h)row I want
-  }
-
-  //initialize the buttons with some text
-  buttons[0].displayText = "";//the first button tracked
-  buttons[1].displayText = "away";
-  buttons[2].displayText = "with";
-  buttons[3].displayText = "strawberry";
-  buttons[4].displayText = "beer";
-  buttons[5].displayText = "to";
-  buttons[6].displayText = "want";
-  buttons[7].displayText = "dream";
-  buttons[8].displayText = "fly";  
-  buttons[9].displayText = "of";
-  buttons[10].displayText = "you";
-  buttons[11].displayText = "make";
-
-
- 
- 
-  //font = createFont("Arial",12,true); 
+  
+  // Set the font first of all
   font = loadFont("KhmerMN-Bold-48.vlw");
-
   textFont(font);
-  buttons[3].w = textWidth("strawberry");
 
+  // A loop to evenly space out the words buttons along the window
+  for (int i = 0; i < words.length; i++) {
+    
+    // Create these going down the page
+    buttons[i] = new Button(44, i*40+100, textWidth(words[i]), 30); 
+    buttons[i].displayText = words[i];
+  }
+
+  // Set up the placeholder buttons
+  for (int i = words.length; i < buttons.length; i++) {
+    
+    // Create these along the bottom (variable x coordinate)
+    buttons[i] = new Button((i-words.length)*30+20, 450, 10, 10);
+  }
+
+  // Create the kinect controller
   kinect = new SimpleOpenNI(this);
 
-  // mirror
+  // Reflect the x/y coordinates to avoid rotational mapping
   kinect.setMirror(true);
 
   // enable depthMap generation 
-  if (kinect.enableDepth() == false)
-  {
+  if (!kinect.enableDepth()) {
     println("Can't open the depthMap, maybe the camera is not connected!"); 
     exit();
     return;
@@ -95,6 +88,9 @@ void setup() {
 
 
 void draw() {
+  
+  // Draw a line down the bottom of the page with a full stop
+  // TODO: Move these to constants
   background(#203F74);
   strokeWeight(4);
   stroke(#EBEFF5);
@@ -102,7 +98,6 @@ void draw() {
   stroke(#EBEFF5);
   fill(#EBEFF5);
   ellipse(740, 470, 3,3);
-
 
   // Show all the buttons
   for (int i = 0; i < buttons.length; i++) {
@@ -118,7 +113,6 @@ void draw() {
   theHandPos = mapHandVec.array();//put that into an array
 
 //    print("hand x: " + theHandPos[0] + "hand y: " + theHandPos[1]);
-
 
   //loop thru each button object
   //find dist betw x n y of our hand and x n y of our button
@@ -168,13 +162,11 @@ void mouseReleased() {
   }
 }
 
-
-
 // -----------------------------------------------------------------
 // gesture events
 
-void onRecognizeGesture(String strGesture, PVector idPosition, PVector endPosition)
-{
+void onRecognizeGesture(String strGesture, PVector idPosition, PVector endPosition) {
+  
   println("onRecognizeGesture - strGesture: " + strGesture + ", idPosition: " + idPosition + ", endPosition:" + endPosition);
 
   lastGesture = strGesture;
@@ -182,14 +174,14 @@ void onRecognizeGesture(String strGesture, PVector idPosition, PVector endPositi
   kinect.startTrackingHands(endPosition);
 }
 
-void onProgressGesture(String strGesture, PVector position, float progress)
-{
+void onProgressGesture(String strGesture, PVector position, float progress) {
+  
   //println("onProgressGesture - strGesture: " + strGesture + ", position: " + position + ", progress:" + progress);
 }
 
 //hand event
-void onCreateHands(int handId, PVector pos, float time)
-{
+void onCreateHands(int handId, PVector pos, float time) {
+  
   println("onCreateHands - handId: " + handId + ", pos: " + pos + ", time:" + time);
 
   handsTrackFlag = true;
@@ -197,26 +189,25 @@ void onCreateHands(int handId, PVector pos, float time)
 
   handVecList.clear();
   handVecList.add(pos);
-  handPointCol = color(0, 255, 0);//green dot
+  handPointCol = color(0, 255, 0); //green dot
 }
 
-void onUpdateHands(int handId, PVector pos, float time)
-{
+void onUpdateHands(int handId, PVector pos, float time) {
   //println("onUpdateHandsCb - handId: " + handId + ", pos: " + pos + ", time:" + time);
   handVec = pos;
 
   handVecList.add(0, pos);
-  if (handVecList.size() >= handVecListSize)
-  { // remove the last point 
+  if (handVecList.size() >= handVecListSize) { 
+    // remove the last point 
     handVecList.remove(handVecList.size()-1);
   }
 }
 
-void onDestroyHands(int handId, float time)
-{
+void onDestroyHands(int handId, float time) {
 //  println("onDestroyHandsCb - handId: " + handId + ", time:" + time);
 
   handsTrackFlag = false;
-  kinect.addGesture(lastGesture);
+  if (lastGesture != null && lastGesture.length() > 0)
+    kinect.addGesture(lastGesture);
 }
 
