@@ -1,9 +1,8 @@
 import SimpleOpenNI.*;
 SimpleOpenNI kinect;
-// NB: the data from openni comes upside down
 
 // Create an array of words that we will use for the poetry
-String[] words = new String[] { 
+final String[] words = new String[] { 
   "away", 
   "with", 
   "strawberry", 
@@ -16,10 +15,33 @@ String[] words = new String[] {
   "you",
   "make"
   };
+  
+// Constant keeping track of the minimum hit distance
+final int MIN_HIT_DISTANCE = 30;
+// The gap between each placeholder 
+final int PLACEHOLDER_GAP = 50;
+// The starting X position for all placeholders
+final int PLACEHOLDER_START_X = 180;
+// The starting Y position for all placeholders
+final int PLACEHOLDER_START_Y = 400;
+// The starting X position for the line
+final int LINE_START_X = 140;
+// The distance below the placeholders to start the line
+final int LINE_Y_DIST = 30;
+// The width of the line
+final int LINE_WIDTH = 610;
+// The distance below the placehoders for the period
+final int PERIOD_Y_DIST = 20;
+// The starting X position for the period
+final int PERIOD_START_X = 740;
+// Starting Y position of the words
+final int WORD_START_Y = 20; /* was 80 */
+final int WORD_HEIGHT = 30;
+final int WORD_GAP = 10;
 
 // An array of buttons
 // to begin with this is the number of words + placeholders to hold these also
-Button[] buttons = new Button[words.length * 2];
+final Button[] buttons = new Button[words.length * 2];
 
 // The font we're using
 PFont font;
@@ -36,8 +58,8 @@ String lastGesture = null;
 
 float[] theHandPos;
 
-int currButton = 0;//this what we are tracking
-int lastButton;//unless we get close to it
+// Keep track of the button we are tracking
+int selectedButton = words.length;
 
 void setup() {
   size(850, 700);
@@ -51,7 +73,7 @@ void setup() {
   for (int i = 0; i < words.length; i++) {
     
     // Create these going down the page
-    buttons[i] = new Button(44, i*40+100, textWidth(words[i]), 30); 
+    buttons[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT); 
     buttons[i].displayText = words[i];
   }
 
@@ -59,13 +81,14 @@ void setup() {
   for (int i = words.length; i < buttons.length; i++) {
     
     // Create these along the bottom (variable x coordinate)
-    buttons[i] = new Button((i-words.length)*30+80, 450, 10, 10);
+    buttons[i] = new Button((i-words.length) * PLACEHOLDER_GAP + PLACEHOLDER_START_X, PLACEHOLDER_START_Y, 10, 10);
   }
 
   // Create the kinect controller
   kinect = new SimpleOpenNI(this);
 
-  // Reflect the x/y coordinates to avoid rotational mapping
+  // Reflect the x/y coordinates to avoid rotational mapping (the data comes in
+  //  with the opposite coordinate system)
   kinect.setMirror(true);
 
   // enable depthMap generation 
@@ -94,10 +117,12 @@ void draw() {
   background(#203F74);
   strokeWeight(4);
   stroke(#EBEFF5);
-  line(140, 480, 750, 480);
+  // NB: x1, y1, x2, y2
+  line(LINE_START_X, PLACEHOLDER_START_Y + LINE_Y_DIST, 
+       LINE_START_X + LINE_WIDTH, PLACEHOLDER_START_Y + LINE_Y_DIST);
   stroke(#EBEFF5);
   fill(#EBEFF5);
-  ellipse(740, 470, 3,3);
+  ellipse(PERIOD_START_X, PLACEHOLDER_START_Y + PERIOD_Y_DIST, 3,3);
 
   // Show all the buttons
   for (int i = 0; i < buttons.length; i++) {
@@ -114,25 +139,33 @@ void draw() {
 
 //    print("hand x: " + theHandPos[0] + "hand y: " + theHandPos[1]);
 
-  //loop thru each button object
-  //find dist betw x n y of our hand and x n y of our button
+  // loop through each button object to find the closest one to our hand within our threshold
+  int closestButton = -1;
+  float closestDistance = MIN_HIT_DISTANCE;
   for (int i = 0; i < buttons.length; i++) { 
     float distance = dist(theHandPos[0], theHandPos[1], buttons[i].x, buttons[i].y);  
-    //if(theHandPos[0] == buttons[i].x && theHandPos[1] == buttons[i].y && i != currButton) {
   
-   if (i != currButton && distance <= 30) {//for a button that we are not already tracking and it gets to <15
-      //lastButton = currButton;
-      currButton = i;//that button we havent been tracking becomes new button
-      println("hit button " + i);
+    // Check to see if the distance between the hand and this button is less than the min distance
+    if (distance < MIN_HIT_DISTANCE && distance < closestDistance) { 
+      // Set the closest distance
+      closestDistance = distance;
+      closestButton = i;    
     }
   }
-  //whatever that button is, we track
-  buttons[currButton].x = theHandPos[0]; 
-  buttons[currButton].y = theHandPos[1];
-
-  //  image(kinect.depthImage(), 0, 0);
-
-  //  stroke(handPointCol);
+  
+  // Update the selected button
+  // If it isn't already selected, select it
+  if (closestButton >= 0 && selectedButton != closestButton) {
+    //that button we havent been tracking becomes new button
+    println("hit button " + closestButton);
+    selectedButton = closestButton;
+  }
+  
+  // Update the selected button with the hand coordinates
+  if (selectedButton >= 0 && selectedButton < buttons.length) {
+    buttons[selectedButton].x = theHandPos[0]; 
+    buttons[selectedButton].y = theHandPos[1];
+  }
 }
 
 void mousePressed() {
