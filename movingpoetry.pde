@@ -32,7 +32,7 @@ final static int PERIOD_START_X = 740; // The starting X position for the period
 final static int WORD_START_Y = 20; // Starting Y position of the words
 final static int WORD_HEIGHT = 30; // The word height
 final static int WORD_GAP = 10; // The gap between each word
-final static color WORD_COLOR_SELECTING = #33333;
+final static color WORD_COLOR_SELECTING = #333333;
 
 // Cursor constants
 final static int CURSOR_SIZE = 10; // The size of the cursor
