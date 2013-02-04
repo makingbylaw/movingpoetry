@@ -32,8 +32,6 @@ final static int MAX_WORD_AREA_WIDTH = 600;
 final static int MAX_WORD_AREA_HEIGHT = 300;
 final static int WORD_HEIGHT = 30; // The word height
 
-//final static int WORD_GAP = 10; // The gap between each word
-
 // Colors
 final static color WORD_COLOR_SELECTING = #333333;
 final static color WORD_COLOR_SELECTED = #eeee00;
@@ -131,9 +129,7 @@ void setup() {
   kinect.enableGesture();
   kinect.enableHands();
 
-  // add focus gestures  / here i do have some problems on the mac, i only recognize raiseHand ? Maybe cpu performance ?
-  //kinect.addGesture("Wave");
-  //kinect.addGesture("Click");
+  // add focus gesture
   kinect.addGesture(TRACKING_GESTURE);
 }
 
