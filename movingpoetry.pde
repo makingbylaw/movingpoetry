@@ -17,49 +17,42 @@ final String[] words = new String[] {
   };
   
 // Constant keeping track of the minimum hit distance
-final int MIN_HIT_DISTANCE = 30;
-// The gap between each placeholder 
-final int PLACEHOLDER_GAP = 50;
-// The starting X position for all placeholders
-final int PLACEHOLDER_START_X = 180;
-// The starting Y position for all placeholders
-final int PLACEHOLDER_START_Y = 400;
-// The starting X position for the line
-final int LINE_START_X = 140;
-// The distance below the placeholders to start the line
-final int LINE_Y_DIST = 30;
-// The width of the line
-final int LINE_WIDTH = 610;
-// The distance below the placehoders for the period
-final int PERIOD_Y_DIST = 20;
-// The starting X position for the period
-final int PERIOD_START_X = 740;
-// Starting Y position of the words
-final int WORD_START_Y = 20; /* was 80 */
-final int WORD_HEIGHT = 30;
-final int WORD_GAP = 10;
+final static int MIN_HIT_DISTANCE = 30; // TODO: Do we need this?
 
-// An array of buttons
-// to begin with this is the number of words + placeholders to hold these also
-final Button[] buttons = new Button[words.length * 2];
+// Line constants
+final static int LINE_START_X = 140; // The starting X position for the line
+final static int LINE_START_Y = 430; // The starting Y position for the line
+final static int LINE_WIDTH = 610; // The width of the line
+
+// Period constants
+final static int PERIOD_START_Y = 420; // The starting Y position for the period
+final static int PERIOD_START_X = 740; // The starting X position for the period
+
+// Word constants
+final static int WORD_START_Y = 20; // Starting Y position of the words
+final static int WORD_HEIGHT = 30; // The word height
+final static int WORD_GAP = 10; // The gap between each word
+final static color WORD_COLOR_SELECTING = #33333;
+
+// Cursor constants
+final static int CURSOR_SIZE = 10; // The size of the cursor
+
+// Gesture constants
+final static String TRACKING_GESTURE = "RaiseHand";
+
+// An array of "buttons" to hold each word
+final Button[] wordTiles = new Button[words.length];
+final Button cursor = new Button(10, 10, CURSOR_SIZE, CURSOR_SIZE);
 
 // The font we're using
 PFont font;
 
 // Tracking flags
-boolean handsTrackFlag = false;
-PVector handVec = new PVector();
-PVector mapHandVec = new PVector();
-color handPointCol = color(255, 0, 0);
-
-ArrayList handVecList = new ArrayList();
-int handVecListSize = 30;
-String lastGesture = null;
-
-float[] theHandPos;
+PVector handVector = new PVector();
+PVector mappedHandVector = new PVector();
 
 // Keep track of the button we are tracking
-int selectedButton = words.length;
+//int selectedButton = -1;
 
 void setup() {
   size(850, 700);
@@ -73,16 +66,13 @@ void setup() {
   for (int i = 0; i < words.length; i++) {
     
     // Create these going down the page
-    buttons[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT); 
-    buttons[i].displayText = words[i];
+    wordTiles[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT); 
+    wordTiles[i].displayText = words[i];
   }
-
-  // Set up the placeholder buttons
-  for (int i = words.length; i < buttons.length; i++) {
-    
-    // Create these along the bottom (variable x coordinate)
-    buttons[i] = new Button((i-words.length) * PLACEHOLDER_GAP + PLACEHOLDER_START_X, PLACEHOLDER_START_Y, 10, 10);
-  }
+  
+  // Set up the cursor
+  cursor.on = true;
+  cursor.drawFill = true;
 
   // Create the kinect controller
   kinect = new SimpleOpenNI(this);
@@ -104,9 +94,9 @@ void setup() {
   kinect.enableHands();
 
   // add focus gestures  / here i do have some problems on the mac, i only recognize raiseHand ? Maybe cpu performance ?
-  kinect.addGesture("Wave");
-  kinect.addGesture("Click");
-  kinect.addGesture("RaiseHand");
+  //kinect.addGesture("Wave");
+  //kinect.addGesture("Click");
+  kinect.addGesture(TRACKING_GESTURE);
 }
 
 
@@ -118,32 +108,49 @@ void draw() {
   strokeWeight(4);
   stroke(#EBEFF5);
   // NB: x1, y1, x2, y2
-  line(LINE_START_X, PLACEHOLDER_START_Y + LINE_Y_DIST, 
-       LINE_START_X + LINE_WIDTH, PLACEHOLDER_START_Y + LINE_Y_DIST);
+  line(LINE_START_X, LINE_START_Y, LINE_START_X + LINE_WIDTH, LINE_START_Y);
   stroke(#EBEFF5);
   fill(#EBEFF5);
-  ellipse(PERIOD_START_X, PLACEHOLDER_START_Y + PERIOD_Y_DIST, 3,3);
+  ellipse(PERIOD_START_X, PERIOD_START_Y, 3,3);
+  
+  // Display the cursor
+  cursor.display();
+
+  // Update the camera
+  kinect.update();
+  kinect.convertRealWorldToProjective(handVector, mappedHandVector);
+
+  // Get the hand position 
+  float[] theHandPosition = mappedHandVector.array();
+  
+  // If the cursor is hovering over a box then change the state
+  boolean isTracking = false; // FIFO style
+  for (int i = 0; i < wordTiles.length; i++) {
+    
+    // This is not good tracking code - it measures it from the top left. It should use the body
+    // We can actually do this better
+    //float distance = dist(theHandPosition[0], theHandPosition[1], wordTiles[i].x, wordTiles[i].y);
+    //if (!isTracking && distance < MIN_HIT_DISTANCE) {
+    if (!isTracking && wordTiles[i].containsPoint(theHandPosition)) {
+      isTracking = true;
+      wordTiles[i].outlineColor = WORD_COLOR_SELECTING;
+    } else {
+      wordTiles[i].outlineColor = Button.DEFAULT_OUTLINE_COLOR;
+    }
+  }
 
   // Show all the buttons
-  for (int i = 0; i < buttons.length; i++) {
-    buttons[i].display();
+  for (int i = 0; i < wordTiles.length; i++) {
+    wordTiles[i].display();
   }
-  
-  /////////////// 
-  // update the cam
-  kinect.update();
-  kinect.convertRealWorldToProjective(handVec, mapHandVec);
-
-  ////move the buttons 
-  theHandPos = mapHandVec.array();//put that into an array
 
 //    print("hand x: " + theHandPos[0] + "hand y: " + theHandPos[1]);
-
+/*
   // loop through each button object to find the closest one to our hand within our threshold
   int closestButton = -1;
   float closestDistance = MIN_HIT_DISTANCE;
-  for (int i = 0; i < buttons.length; i++) { 
-    float distance = dist(theHandPos[0], theHandPos[1], buttons[i].x, buttons[i].y);  
+  for (int i = 0; i < wordTiles.length; i++) { 
+    float distance = dist(theHandPosition[0], theHandPosition[1], wordTiles[i].x, wordTiles[i].y);  
   
     // Check to see if the distance between the hand and this button is less than the min distance
     if (distance < MIN_HIT_DISTANCE && distance < closestDistance) { 
@@ -160,29 +167,32 @@ void draw() {
     println("hit button " + closestButton);
     selectedButton = closestButton;
   }
-  
+*/  
+  // Update the cursor position
+  cursor.updatePosition(theHandPosition);
+/*  
   // Update the selected button with the hand coordinates
-  if (selectedButton >= 0 && selectedButton < buttons.length) {
-    buttons[selectedButton].x = theHandPos[0]; 
-    buttons[selectedButton].y = theHandPos[1];
+  if (selectedButton >= 0 && selectedButton < wordTiles.length) {
+    wordTiles[selectedButton].updatePosition(theHandPosition); 
   }
+*/
 }
 
 void mousePressed() {
   // When the mouse is pressed, we must check every single button
-  for (int i = 0; i < buttons.length; i++) {
-    buttons[i].check(mouseX, mouseY);
+  for (int i = 0; i < wordTiles.length; i++) {
+    wordTiles[i].check(mouseX, mouseY);
   }
 }
 
 void mouseDragged() {
 
   //loop through all the buttons
-  for (int i = 0; i < buttons.length; i++) {   
+  for (int i = 0; i < wordTiles.length; i++) {   
     //if the button was clicked, move it
-    if (buttons[i].on) {
-      buttons[i].x = mouseX - buttons[i].xOff;
-      buttons[i].y = mouseY - buttons[i].yOff;
+    if (wordTiles[i].on) {
+      wordTiles[i].x = mouseX - wordTiles[i].xOff;
+      wordTiles[i].y = mouseY - wordTiles[i].yOff;
     }
   }
 }
@@ -190,20 +200,18 @@ void mouseDragged() {
 void mouseReleased() {
 
   //when releasing the mouse, turn all the buttons to the off or locked state
-  for (int i = 0; i < buttons.length; i++) {
-    buttons[i].on = false;
+  for (int i = 0; i < wordTiles.length; i++) {
+    wordTiles[i].on = false;
   }
 }
 
 // -----------------------------------------------------------------
 // gesture events
 
-void onRecognizeGesture(String strGesture, PVector idPosition, PVector endPosition) {
+void onRecognizeGesture(String gesture, PVector idPosition, PVector endPosition) {
   
-  println("onRecognizeGesture - strGesture: " + strGesture + ", idPosition: " + idPosition + ", endPosition:" + endPosition);
-
-  lastGesture = strGesture;
-  kinect.removeGesture(strGesture); 
+  println(gesture + ", idPosition: " + idPosition + ", endPosition:" + endPosition);
+  kinect.removeGesture(TRACKING_GESTURE); 
   kinect.startTrackingHands(endPosition);
 }
 
@@ -215,32 +223,28 @@ void onProgressGesture(String strGesture, PVector position, float progress) {
 //hand event
 void onCreateHands(int handId, PVector pos, float time) {
   
-  println("onCreateHands - handId: " + handId + ", pos: " + pos + ", time:" + time);
+  println("onCreateHands - handId: " + handId + ", pos: " + pos);
+  handVector = pos;
 
-  handsTrackFlag = true;
-  handVec = pos;
-
-  handVecList.clear();
-  handVecList.add(pos);
-  handPointCol = color(0, 255, 0); //green dot
+  //handVectorList.clear();
+  //handVectorList.add(pos);
 }
 
 void onUpdateHands(int handId, PVector pos, float time) {
-  //println("onUpdateHandsCb - handId: " + handId + ", pos: " + pos + ", time:" + time);
-  handVec = pos;
+  
+  //println("onUpdateHandsCb - handId: " + handId + ", pos: " + pos);
+  handVector = pos;
 
-  handVecList.add(0, pos);
-  if (handVecList.size() >= handVecListSize) { 
+  //handVectorList.add(0, pos);
+  //if (handVectorList.size() >= MAX_HAND_VECTOR_LIST_SIZE) { 
     // remove the last point 
-    handVecList.remove(handVecList.size()-1);
-  }
+  //  handVectorList.remove(handVectorList.size()-1);
+  //}
 }
 
 void onDestroyHands(int handId, float time) {
-//  println("onDestroyHandsCb - handId: " + handId + ", time:" + time);
-
-  handsTrackFlag = false;
-  if (lastGesture != null && lastGesture.length() > 0)
-    kinect.addGesture(lastGesture);
+  println("Destroying hand " + handId);
+  kinect.addGesture(TRACKING_GESTURE);
+  //kinect.stopTrackingHands();
 }
 

@@ -4,25 +4,32 @@ class Button {
 
   // Button location and size
   float x; 
-  float x1;  
   float y;
-  float y1;  
   float w;   
   float h;
-
 
   float xOff;
   float yOff;  
   // Is the button on or off?
   boolean on;  
   String displayText;
+  
+  color outlineColor;
+  color textColor;
+  color fillColor;
+
+  boolean drawBorder = true;
+  boolean drawFill = false;
+  
+  final static color DEFAULT_OUTLINE_COLOR = #E3E7EA;
+  final static color DEFAULT_TEXT_COLOR = #E8EDF5;
 
   // Constructor initializes all variables
   Button(float tempX, float tempY, float tempW, float tempH) {    
     x  = tempX;
     y  = tempY;   
-    w  = tempW+5;   
-    h  = tempH+5;
+    w  = tempW;   
+    h  = tempH;
 
     //    botButtonx = tempX;
     //    botButtony = tempY+200;
@@ -33,7 +40,10 @@ class Button {
     yOff = 0;   
 
     on = false;  // Button always starts as off
-    displayText = "";
+    displayText = null;
+    
+    outlineColor = DEFAULT_OUTLINE_COLOR;
+    textColor = DEFAULT_TEXT_COLOR;
   }    
 
   void check(int mx, int my) {
@@ -48,38 +58,47 @@ class Button {
       on = false;
     }
   }
+  
+  void updatePosition(float[] coordinates) {
+    if (coordinates != null && coordinates.length > 1) {
+      this.x = coordinates[0];
+      this.y = coordinates[1];
+    }
+  }
+  
+  boolean containsPoint(float[] coordinates) {
+    if (coordinates == null && coordinates.length < 2) return false;
+    return coordinates[0] >= this.x && coordinates[0] <= (this.x + this.w) &&
+           coordinates[1] >= this.y && coordinates[1] <= (this.y + this.h); 
+  }
 
   // Draw the buttons
   void display() {
 
     rectMode(CORNER);
-    stroke(#E3E7EA);//button outline
-    strokeWeight(.6);
-    //noStroke();
-    noFill();
+    if (drawBorder) {
+      stroke(outlineColor);//button outline
+      strokeWeight(.6);
+    } else {
+      noStroke();
+    }
+    
+    if (drawFill) {
+      fill(255);
+    } else {
+      noFill();
+    }
+    
     // The color changes based on the state of the button
-    //    if (on) {
-    //      fill(255);
-    //    } else {
-    //      fill(255);
-    //    }
-
     rect(x, y, w, h);
 
-  
-
-   
-
     //draw the text
-    if (displayText!="") {
-      fill(#E8EDF5);
-  
+    if (displayText != null) {
+      fill(textColor);
       text(displayText, (x+(w/2)), (y+(h/2)));
-      textSize(35);
+      textSize(h);
       textAlign(CENTER, CENTER);
     }
-
-;
   }
 } 
 
