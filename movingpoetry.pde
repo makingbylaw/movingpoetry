@@ -33,9 +33,11 @@ final static int WORD_START_Y = 20; // Starting Y position of the words
 final static int WORD_HEIGHT = 30; // The word height
 final static int WORD_GAP = 10; // The gap between each word
 final static color WORD_COLOR_SELECTING = #333333;
+final static color WORD_COLOR_SELECTED = #eeee00;
 
 // Cursor constants
 final static int CURSOR_SIZE = 10; // The size of the cursor
+final static int TIME_BEFORE_SELECTION = 1000; // Time in ms
 
 // Gesture constants
 final static String TRACKING_GESTURE = "RaiseHand";
@@ -51,8 +53,10 @@ PFont font;
 PVector handVector = new PVector();
 PVector mappedHandVector = new PVector();
 
-// Keep track of the button we are tracking
-//int selectedButton = -1;
+// We need to keep track of moving words etc
+int selectedWord = -1;
+int consideringMovingWord = -1;
+int consideringMovingWordSince = 0;
 
 void setup() {
   size(850, 700);
@@ -112,9 +116,6 @@ void draw() {
   stroke(#EBEFF5);
   fill(#EBEFF5);
   ellipse(PERIOD_START_X, PERIOD_START_Y, 3,3);
-  
-  // Display the cursor
-  cursor.display();
 
   // Update the camera
   kinect.update();
@@ -123,16 +124,49 @@ void draw() {
   // Get the hand position 
   float[] theHandPosition = mappedHandVector.array();
   
+  // Update the cursor position
+  cursor.updatePosition(theHandPosition);
+  
+  // Display the cursor
+  cursor.display();
+  
+  // We need to decide whether we are moving or not
+  if (selectedWord >= 0) {
+    // We're currently moving this word
+    wordTiles[selectedWord].updatePosition(theHandPosition);
+  } else {
+    // Work out if which one we are currently considering
+    int consider = -1;
+    for (int i = 0; i < wordTiles.length; i++) {
+      if (wordTiles[i].containsPoint(theHandPosition)) {
+        consider = i;
+        break;
+      }
+    }
+    
+    // Check to see if it is the same as the one we are currently considering
+    if (consider >= 0 && consider == consideringMovingWord) {
+      
+      // Check the time to see if we should upgrade this to a selected tile
+      if (millis() - consideringMovingWordSince >= TIME_BEFORE_SELECTION) {
+        selectedWord = consideringMovingWord;
+        consideringMovingWord = -1;
+      }
+      
+    } else {
+      
+      // Update the considering moving word and set the time 
+      consideringMovingWord = consider;
+      consideringMovingWordSince = millis();
+    }
+  }
+  
   // If the cursor is hovering over a box then change the state
-  boolean isTracking = false; // FIFO style
   for (int i = 0; i < wordTiles.length; i++) {
     
-    // This is not good tracking code - it measures it from the top left. It should use the body
-    // We can actually do this better
-    //float distance = dist(theHandPosition[0], theHandPosition[1], wordTiles[i].x, wordTiles[i].y);
-    //if (!isTracking && distance < MIN_HIT_DISTANCE) {
-    if (!isTracking && wordTiles[i].containsPoint(theHandPosition)) {
-      isTracking = true;
+    if (selectedWord == i) {
+      wordTiles[i].outlineColor = WORD_COLOR_SELECTED;
+    } else if (consideringMovingWord == i) {
       wordTiles[i].outlineColor = WORD_COLOR_SELECTING;
     } else {
       wordTiles[i].outlineColor = Button.DEFAULT_OUTLINE_COLOR;
@@ -168,8 +202,6 @@ void draw() {
     selectedButton = closestButton;
   }
 */  
-  // Update the cursor position
-  cursor.updatePosition(theHandPosition);
 /*  
   // Update the selected button with the hand coordinates
   if (selectedButton >= 0 && selectedButton < wordTiles.length) {
