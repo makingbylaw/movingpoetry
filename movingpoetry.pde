@@ -177,37 +177,6 @@ void draw() {
   for (int i = 0; i < wordTiles.length; i++) {
     wordTiles[i].display();
   }
-
-//    print("hand x: " + theHandPos[0] + "hand y: " + theHandPos[1]);
-/*
-  // loop through each button object to find the closest one to our hand within our threshold
-  int closestButton = -1;
-  float closestDistance = MIN_HIT_DISTANCE;
-  for (int i = 0; i < wordTiles.length; i++) { 
-    float distance = dist(theHandPosition[0], theHandPosition[1], wordTiles[i].x, wordTiles[i].y);  
-  
-    // Check to see if the distance between the hand and this button is less than the min distance
-    if (distance < MIN_HIT_DISTANCE && distance < closestDistance) { 
-      // Set the closest distance
-      closestDistance = distance;
-      closestButton = i;    
-    }
-  }
-  
-  // Update the selected button
-  // If it isn't already selected, select it
-  if (closestButton >= 0 && selectedButton != closestButton) {
-    //that button we havent been tracking becomes new button
-    println("hit button " + closestButton);
-    selectedButton = closestButton;
-  }
-*/  
-/*  
-  // Update the selected button with the hand coordinates
-  if (selectedButton >= 0 && selectedButton < wordTiles.length) {
-    wordTiles[selectedButton].updatePosition(theHandPosition); 
-  }
-*/
 }
 
 void mousePressed() {
@@ -257,26 +226,16 @@ void onCreateHands(int handId, PVector pos, float time) {
   
   println("onCreateHands - handId: " + handId + ", pos: " + pos);
   handVector = pos;
-
-  //handVectorList.clear();
-  //handVectorList.add(pos);
 }
 
 void onUpdateHands(int handId, PVector pos, float time) {
   
   //println("onUpdateHandsCb - handId: " + handId + ", pos: " + pos);
   handVector = pos;
-
-  //handVectorList.add(0, pos);
-  //if (handVectorList.size() >= MAX_HAND_VECTOR_LIST_SIZE) { 
-    // remove the last point 
-  //  handVectorList.remove(handVectorList.size()-1);
-  //}
 }
 
 void onDestroyHands(int handId, float time) {
   println("Destroying hand " + handId);
   kinect.addGesture(TRACKING_GESTURE);
-  //kinect.stopTrackingHands();
 }
 
