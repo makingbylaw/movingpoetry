@@ -66,10 +66,14 @@ class Button {
     }
   }
   
+  boolean containsPoint(float x1, float y1) {
+    return x1 >= this.x && x1 <= (this.x + this.w) &&
+           y1 >= this.y && y1 <= (this.y + this.h); 
+  }
+  
   boolean containsPoint(float[] coordinates) {
     if (coordinates == null && coordinates.length < 2) return false;
-    return coordinates[0] >= this.x && coordinates[0] <= (this.x + this.w) &&
-           coordinates[1] >= this.y && coordinates[1] <= (this.y + this.h); 
+    return this.containsPoint(coordinates[0], coordinates[1]); 
   }
 
   // Draw the buttons

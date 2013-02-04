@@ -16,9 +16,6 @@ final String[] words = new String[] {
   "make"
   };
   
-// Constant keeping track of the minimum hit distance
-final static int MIN_HIT_DISTANCE = 30; // TODO: Do we need this?
-
 // Line constants
 final static int LINE_START_X = 140; // The starting X position for the line
 final static int LINE_START_Y = 430; // The starting Y position for the line
@@ -30,8 +27,14 @@ final static int PERIOD_START_X = 740; // The starting X position for the period
 
 // Word constants
 final static int WORD_START_Y = 20; // Starting Y position of the words
+final static int WORD_START_X = 44;
+final static int MAX_WORD_AREA_WIDTH = 600;
+final static int MAX_WORD_AREA_HEIGHT = 300;
 final static int WORD_HEIGHT = 30; // The word height
-final static int WORD_GAP = 10; // The gap between each word
+
+//final static int WORD_GAP = 10; // The gap between each word
+
+// Colors
 final static color WORD_COLOR_SELECTING = #333333;
 final static color WORD_COLOR_SELECTED = #eeee00;
 
@@ -67,12 +70,43 @@ void setup() {
   textFont(font);
 
   // A loop to evenly space out the words buttons along the window
+  int numberOfConflicts = 0;
+  int startTime = millis();
   for (int i = 0; i < words.length; i++) {
     
+    // Work out the best x and y positions to use
+    boolean positionFound = false;
+    float x = 0, y = 0;
+    float w = textWidth(words[i]);
+    float h = WORD_HEIGHT;
+    
+    // Find a position
+    while (!positionFound) {
+      x = random(0, MAX_WORD_AREA_WIDTH) + WORD_START_X;
+      y = random(0, MAX_WORD_AREA_HEIGHT) + WORD_START_Y;
+      
+      // Make sure we aren't overlapping at all.
+      boolean overlaps = false;
+      for (int j = 0; j < i && !overlaps; j++) {
+        
+        // Check all four corners for overlaps
+        overlaps = wordTiles[j].containsPoint(x, y) || wordTiles[j].containsPoint(x + w, y + h) ||
+                   wordTiles[j].containsPoint(x + w, y) || wordTiles[j].containsPoint(x, y + h);
+      }
+      
+      // Set if we found a position
+      positionFound = !overlaps; 
+      if (!positionFound) {
+        numberOfConflicts++;
+      }
+    }
+    
     // Create these going down the page
-    wordTiles[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT); 
+    //wordTiles[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT);
+    wordTiles[i] = new Button(x, y, w, h); 
     wordTiles[i].displayText = words[i];
   }
+  println("Scattered words with " + numberOfConflicts + " conflicts in " + (millis() - startTime) + "ms");
   
   // Set up the cursor
   cursor.on = true;
