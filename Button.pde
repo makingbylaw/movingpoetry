@@ -9,10 +9,14 @@ class Button {
   float h;
 
   float xOff;
-  float yOff;  
+  float yOff;
+  
   // Is the button on or off?
   boolean on;  
   String displayText;
+
+  // Apply a tag to the button if necessary  
+  int tag;
   
   color outlineColor;
   color textColor;
@@ -61,9 +65,23 @@ class Button {
   
   void updatePosition(float[] coordinates) {
     if (coordinates != null && coordinates.length > 1) {
-      this.x = coordinates[0];
-      this.y = coordinates[1];
+      updatePosition(coordinates[0], coordinates[1]);
     }
+  }
+  
+  void updatePosition(PVector vector) {
+    if (vector != null) {
+      updatePosition(vector.x, vector.y);
+    }
+  }
+  
+  void updatePosition(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+  
+  boolean containsPoint(PVector vector) {
+    return containsPoint(vector.x, vector.y);
   }
   
   boolean containsPoint(float x1, float y1) {

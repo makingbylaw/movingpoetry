@@ -1,6 +1,12 @@
 import SimpleOpenNI.*;
 SimpleOpenNI kinect;
 
+/*
+ * TODO: Insert a word
+ * TODO: Remove a dropped word from the line
+ * TODO: Move a word on the line
+ */
+
 // Create an array of words that we will use for the poetry
 final String[] words = new String[] { 
   "away", 
@@ -17,9 +23,9 @@ final String[] words = new String[] {
   };
   
 // Line constants
-final static int LINE_START_X = 140; // The starting X position for the line
+final static int LINE_START_X = 100; // The starting X position for the line
 final static int LINE_START_Y = 430; // The starting Y position for the line
-final static int LINE_WIDTH = 610; // The width of the line
+final static int LINE_WIDTH = 650; // The width of the line
 
 // Period constants
 final static int PERIOD_START_Y = 420; // The starting Y position for the period
@@ -39,6 +45,10 @@ final static color WORD_COLOR_SELECTED = #eeee00;
 // Cursor constants
 final static int CURSOR_SIZE = 10; // The size of the cursor
 final static int TIME_BEFORE_SELECTION = 1000; // Time in ms
+final static int TIME_BEFORE_DROP = 1000; // Time in ms
+
+// Set to enable/disable the mouse
+final static boolean ENABLE_MOUSE = true;
 
 // Gesture constants
 final static String TRACKING_GESTURE = "RaiseHand";
@@ -53,6 +63,12 @@ PFont font;
 // Tracking flags
 PVector handVector = new PVector();
 PVector mappedHandVector = new PVector();
+
+// The dropped list of words - used only for ordering
+final ArrayList droppedWords = new ArrayList();
+// The ghost drop box - only ever drawn when it's on
+final Button ghostDropBox = new Button(1, LINE_START_Y - WORD_HEIGHT, 1, WORD_HEIGHT);
+int ghostBoxShownSince = 0;
 
 // We need to keep track of moving words etc
 int selectedWord = -1;
@@ -109,6 +125,10 @@ void setup() {
   // Set up the cursor
   cursor.on = true;
   cursor.drawFill = true;
+  
+  // Set up the ghost button
+  ghostDropBox.outlineColor = #eeeeee;
+  ghostDropBox.textColor = #eeeeee;
 
   // Create the kinect controller
   kinect = new SimpleOpenNI(this);
@@ -147,48 +167,33 @@ void draw() {
   fill(#EBEFF5);
   ellipse(PERIOD_START_X, PERIOD_START_Y, 3,3);
 
-  // Update the camera
-  kinect.update();
-  kinect.convertRealWorldToProjective(handVector, mappedHandVector);
+  if (ENABLE_MOUSE) {
+    mappedHandVector.x = mouseX;
+    mappedHandVector.y = mouseY;
+  } else {
+    // Update the camera
+    kinect.update();
+    kinect.convertRealWorldToProjective(handVector, mappedHandVector);
+  }
 
-  // Get the hand position 
-  float[] theHandPosition = mappedHandVector.array();
-  
   // Update the cursor position
-  cursor.updatePosition(theHandPosition);
+  cursor.updatePosition(mappedHandVector);
   
   // Display the cursor
   cursor.display();
   
   // We need to decide whether we are moving or not
   if (selectedWord >= 0) {
-    // We're currently moving this word
-    wordTiles[selectedWord].updatePosition(theHandPosition);
-  } else {
-    // Work out if which one we are currently considering
-    int consider = -1;
-    for (int i = 0; i < wordTiles.length; i++) {
-      if (wordTiles[i].containsPoint(theHandPosition)) {
-        consider = i;
-        break;
-      }
-    }
     
-    // Check to see if it is the same as the one we are currently considering
-    if (consider >= 0 && consider == consideringMovingWord) {
-      
-      // Check the time to see if we should upgrade this to a selected tile
-      if (millis() - consideringMovingWordSince >= TIME_BEFORE_SELECTION) {
-        selectedWord = consideringMovingWord;
-        consideringMovingWord = -1;
-      }
-      
-    } else {
-      
-      // Update the considering moving word and set the time 
-      consideringMovingWord = consider;
-      consideringMovingWordSince = millis();
-    }
+    // We're currently moving this word
+    wordTiles[selectedWord].updatePosition(mappedHandVector);
+    
+    // Also check to see if we're in a drop zone (or close to one)
+    detectDropZone(mappedHandVector);
+  } else {
+    
+    // Detect if we are selecting a word
+    detectSelectingWord(mappedHandVector);
   }
   
   // If the cursor is hovering over a box then change the state
@@ -207,33 +212,150 @@ void draw() {
   for (int i = 0; i < wordTiles.length; i++) {
     wordTiles[i].display();
   }
-}
-
-void mousePressed() {
-  // When the mouse is pressed, we must check every single button
-  for (int i = 0; i < wordTiles.length; i++) {
-    wordTiles[i].check(mouseX, mouseY);
+  
+  // Show the ghost button if necessary
+  if (ghostDropBox.on) {
+    ghostDropBox.display();
   }
 }
 
-void mouseDragged() {
-
-  //loop through all the buttons
-  for (int i = 0; i < wordTiles.length; i++) {   
-    //if the button was clicked, move it
-    if (wordTiles[i].on) {
-      wordTiles[i].x = mouseX - wordTiles[i].xOff;
-      wordTiles[i].y = mouseY - wordTiles[i].yOff;
+void detectSelectingWord(PVector handVector) {
+  
+  // If we have one selected - gtfo
+  if (selectedWord >= 0)
+    return;
+  
+  // Work out if which one we are currently considering
+  int consider = -1;
+  for (int i = 0; i < wordTiles.length; i++) {
+    if (wordTiles[i].containsPoint(handVector)) {
+      consider = i;
+      break;
     }
   }
+  
+  // Check to see if it is the same as the one we are currently considering
+  if (consider >= 0 && consider == consideringMovingWord) {
+    
+    // Check the time to see if we should upgrade this to a selected tile
+    if (millis() - consideringMovingWordSince >= TIME_BEFORE_SELECTION) {
+      println("selecting word " + wordTiles[consideringMovingWord].displayText);
+      selectedWord = consideringMovingWord;
+      consideringMovingWord = -1;
+    }
+    
+  } else {
+    
+    // Update the considering moving word and set the time 
+    if (consider >= 0) {
+      consideringMovingWordSince = millis();
+      println("considering moving word " + wordTiles[consider].displayText);
+    }
+    consideringMovingWord = consider;
+  }
 }
 
-void mouseReleased() {
+void detectDropZone(PVector handVector) {
+  
+  // If nothing is selected then return
+  if (selectedWord < 0) return;
+  
+  // Keep track of the last x position
+  // By default this is the start of the line 
+  float lastX = LINE_START_X;
+  Button selected = wordTiles[selectedWord];
+  float widthOfWord = selected.w;
+  
+  // Work out the detection line positions
+  // For completeness we'll use three vectors
+  // NB: We set the y now but change the x later
+  float detectionLineY = LINE_START_Y - WORD_HEIGHT/2;
+  PVector v1 = new PVector(lastX, detectionLineY);
+  PVector v2 = new PVector(lastX, detectionLineY);
+  PVector v3 = new PVector(lastX, detectionLineY);
+  
+  // Loop through the current list of words to see if we need to shift any over
+  boolean hitSomething = false;
+  for (int i = 0; i < droppedWords.size(); i++) {
+    // Get the current button
+    Button c = (Button)droppedWords.get(i);
 
-  //when releasing the mouse, turn all the buttons to the off or locked state
-  for (int i = 0; i < wordTiles.length; i++) {
-    wordTiles[i].on = false;
+    // Update the last x
+    lastX += c.w;  
+
+    // Set up the new detection vectors
+    v1.x = lastX;
+    v2.x = lastX + widthOfWord/2;
+    v3.x = lastX + widthOfWord;
+
+    // Check for a hit
+    hitSomething = checkPointsForGhostBox(selected, v1, v2, v3, i + 1);
   }
+  
+  // If none were hit, then check the "end zone"
+  if (!hitSomething) {
+    
+    // Set up the new detection vectors
+    v1.x = lastX;
+    v2.x = lastX + widthOfWord/2;
+    v3.x = lastX + widthOfWord;
+    // Check for a hit
+    hitSomething = checkPointsForGhostBox(selected, v1, v2, v3, droppedWords.size() + 1);
+  } 
+  
+  // Assuming nothing was hit still, then turn off the ghost
+  if (!hitSomething) {
+    ghostDropBox.on = false;
+    ghostBoxShownSince = 0;
+  }
+}
+
+boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector v3, int tag) {
+  
+  // Check to see if any of these contains our word
+  if (selected.containsPoint(v1) || selected.containsPoint(v2) || selected.containsPoint(v3)) {
+    // If so, we create a drop box ghost (if not already there) and start the timer
+    if (ghostDropBox.on && ghostDropBox.tag == tag) {
+      // We've already started the timer - check the time
+      if (millis() - ghostBoxShownSince >= TIME_BEFORE_DROP) {
+        println("Dropping word into ghost box");
+        // Drop the word
+        selected.x = ghostDropBox.x;
+        selected.y = ghostDropBox.y;
+        // Reset the box
+        ghostDropBox.on = false;
+        ghostDropBox.tag = 0;
+        ghostBoxShownSince = 0;
+        
+        // Drop the word into the appropriate place
+        int index = tag - 1;
+        if (index < droppedWords.size()) {
+          //insert it into the approrpriate place
+          droppedWords.add(index, selected);
+          /*
+          // Update the other locations 
+          for (int i = index + 1; i < droppedWords.size(); i++) {
+            droppedWords.get(i).x = droppedWords.get(i).x + droppedWords[i-1].w;
+          }*/
+        } else
+          droppedWords.add(selected);
+        
+        // Unselect our box
+        selectedWord = -1;
+      } 
+            
+    } else {
+      // Turn on the ghost box and add it to our list
+      println("Enabling ghost box");
+      ghostDropBox.on = true;
+      ghostDropBox.x = v1.x;
+      ghostDropBox.w = selected.w;
+      ghostDropBox.tag = tag;
+      ghostBoxShownSince = millis();
+    }
+    return true; 
+  }
+  return false;
 }
 
 // -----------------------------------------------------------------
