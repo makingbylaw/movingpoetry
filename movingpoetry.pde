@@ -2,9 +2,8 @@ import SimpleOpenNI.*;
 SimpleOpenNI kinect;
 
 /*
- * TODO: Insert a word
- * TODO: Remove a dropped word from the line
- * TODO: Move a word on the line
+ * TODO: wave to drop - Remove a dropped word from the line
+ * TODO: Move words over when overlapping - maybe when take something off the line move the rest over
  */
 
 // Create an array of words that we will use for the poetry
@@ -119,6 +118,7 @@ void setup() {
     //wordTiles[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT);
     wordTiles[i] = new Button(x, y, w, h); 
     wordTiles[i].displayText = words[i];
+    wordTiles[i].tag = i;
   }
   println("Scattered words with " + numberOfConflicts + " conflicts in " + (millis() - startTime) + "ms");
   
@@ -242,6 +242,34 @@ void detectSelectingWord(PVector handVector) {
       println("selecting word " + wordTiles[consideringMovingWord].displayText);
       selectedWord = consideringMovingWord;
       consideringMovingWord = -1;
+      
+      // If this was previously selected then remove it from the drop box
+      println("checking to see if we need to remove it from the line (" + wordTiles[selectedWord].tag + ")");
+      for (int i = 0; i < droppedWords.size(); i++) {
+        Button c = (Button)droppedWords.get(i);
+        println("button at " + i + " tag = " + c.tag + " " + c.displayText);
+        if (c.tag == wordTiles[selectedWord].tag) {
+          println("found it at position " + i);
+          // Remove it from the array - and update the rest of the dropped words
+          droppedWords.remove(i);
+          
+          // Adjust the rest
+          float x;
+          if (i > 0) {
+            c = (Button)droppedWords.get(i-1);
+            x = c.x + c.w;
+          } else {
+            x = LINE_START_X;
+          }
+          for (int j = i; j < droppedWords.size(); j++) {
+            c = (Button)droppedWords.get(j);
+            println("setting index " + j + " to " + x);
+            c.x = x;
+            x += c.w;
+          }
+          break;
+        }
+      }
     }
     
   } else {
@@ -284,12 +312,20 @@ void detectDropZone(PVector handVector) {
     lastX += c.w;  
 
     // Set up the new detection vectors
-    v1.x = lastX;
-    v2.x = lastX + widthOfWord/2;
-    v3.x = lastX + widthOfWord;
+    //v1.x = lastX;
+    //v2.x = lastX + widthOfWord/2;
+    //v3.x = lastX + widthOfWord;
 
     // Check for a hit
-    hitSomething = checkPointsForGhostBox(selected, v1, v2, v3, i + 1);
+    //hitSomething = checkPointsForGhostBox(selected, v1, v2, v3, i + 1);
+    //if (hitSomething) {
+      // Move over other code to make way for the ghost
+      //for (int j = i + 1; j < droppedWords.size(); j++) {
+      //  c = (Button)droppedWords.get(j);
+      //  c.x += ghostDropBox.w;
+      //}
+      //break;
+    //}
   }
   
   // If none were hit, then check the "end zone"
@@ -318,7 +354,7 @@ boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector 
     if (ghostDropBox.on && ghostDropBox.tag == tag) {
       // We've already started the timer - check the time
       if (millis() - ghostBoxShownSince >= TIME_BEFORE_DROP) {
-        println("Dropping word into ghost box");
+        println("Dropping " + selected.displayText + " into ghost box");
         // Drop the word
         selected.x = ghostDropBox.x;
         selected.y = ghostDropBox.y;
@@ -328,17 +364,17 @@ boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector 
         ghostBoxShownSince = 0;
         
         // Drop the word into the appropriate place
-        int index = tag - 1;
-        if (index < droppedWords.size()) {
+        //int index = tag - 1;
+        //if (index < droppedWords.size()) {
           //insert it into the approrpriate place
-          droppedWords.add(index, selected);
+        //  droppedWords.add(index, selected);
           /*
           // Update the other locations 
           for (int i = index + 1; i < droppedWords.size(); i++) {
             droppedWords.get(i).x = droppedWords.get(i).x + droppedWords[i-1].w;
           }*/
-        } else
-          droppedWords.add(selected);
+        //} else
+        droppedWords.add(selected);
         
         // Unselect our box
         selectedWord = -1;
@@ -346,7 +382,7 @@ boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector 
             
     } else {
       // Turn on the ghost box and add it to our list
-      println("Enabling ghost box");
+      println("Enabling ghost box at " + v1.x + " for " + selected.displayText);
       ghostDropBox.on = true;
       ghostDropBox.x = v1.x;
       ghostDropBox.w = selected.w;
