@@ -1,5 +1,4 @@
 // Button class
-
 class Button {    
 
   // Button location and size

@@ -1,11 +1,6 @@
 import SimpleOpenNI.*;
 SimpleOpenNI kinect;
 
-/*
- * TODO: wave to drop - Remove a dropped word from the line
- * TODO: Move words over when overlapping - maybe when take something off the line move the rest over
- */
-
 // Create an array of words that we will use for the poetry
 final String[] words = new String[] { 
   "away", 
@@ -52,6 +47,9 @@ final static boolean ENABLE_MOUSE = true;
 // Gesture constants
 final static String TRACKING_GESTURE = "RaiseHand";
 
+// Flick constants
+final static int FLICK_DELTA_REQUIREMENT = 50; // in pixels
+
 // An array of "buttons" to hold each word
 final Button[] wordTiles = new Button[words.length];
 final Button cursor = new Button(10, 10, CURSOR_SIZE, CURSOR_SIZE);
@@ -62,6 +60,7 @@ PFont font;
 // Tracking flags
 PVector handVector = new PVector();
 PVector mappedHandVector = new PVector();
+PVector lastPosition = new PVector();
 
 // The dropped list of words - used only for ordering
 final ArrayList droppedWords = new ArrayList();
@@ -104,7 +103,10 @@ void setup() {
         
         // Check all four corners for overlaps
         overlaps = wordTiles[j].containsPoint(x, y) || wordTiles[j].containsPoint(x + w, y + h) ||
-                   wordTiles[j].containsPoint(x + w, y) || wordTiles[j].containsPoint(x, y + h);
+                   wordTiles[j].containsPoint(x + w, y) || wordTiles[j].containsPoint(x, y + h) ||
+                   // Also check mid points
+                   wordTiles[j].containsPoint(x + w/2, y) || wordTiles[j].containsPoint(x, y + h/2) ||
+                   wordTiles[j].containsPoint(x + w/2, y + h/2) || wordTiles[j].containsPoint(x + w/2, y + h/2);
       }
       
       // Set if we found a position
@@ -114,8 +116,7 @@ void setup() {
       }
     }
     
-    // Create these going down the page
-    //wordTiles[i] = new Button(44, i* (WORD_HEIGHT + WORD_GAP) + WORD_START_Y, textWidth(words[i]), WORD_HEIGHT);
+    // Create the word
     wordTiles[i] = new Button(x, y, w, h); 
     wordTiles[i].displayText = words[i];
     wordTiles[i].tag = i;
@@ -130,32 +131,35 @@ void setup() {
   ghostDropBox.outlineColor = #eeeeee;
   ghostDropBox.textColor = #eeeeee;
 
-  // Create the kinect controller
-  kinect = new SimpleOpenNI(this);
-
-  // Reflect the x/y coordinates to avoid rotational mapping (the data comes in
-  //  with the opposite coordinate system)
-  kinect.setMirror(true);
-
-  // enable depthMap generation 
-  if (!kinect.enableDepth()) {
-    println("Can't open the depthMap, maybe the camera is not connected!"); 
-    exit();
-    return;
+  // Set up the kinect if we aren't using mouse
+  // A better use of this is actually compiler constants
+  if (!ENABLE_MOUSE) {
+    // Create the kinect controller
+    kinect = new SimpleOpenNI(this);
+  
+    // Reflect the x/y coordinates to avoid rotational mapping (the data comes in
+    //  with the opposite coordinate system)
+    kinect.setMirror(true);
+  
+    // enable depthMap generation 
+    if (!kinect.enableDepth()) {
+      println("Can't open the depthMap, maybe the camera is not connected!"); 
+      exit();
+      return;
+    }
+  
+    // enable hands + gesture generation
+    kinect.enableDepth();
+    kinect.enableGesture();
+    kinect.enableHands();
+  
+    // add focus gesture
+    kinect.addGesture(TRACKING_GESTURE);
   }
-
-  // enable hands + gesture generation
-  kinect.enableDepth();
-  kinect.enableGesture();
-  kinect.enableHands();
-
-  // add focus gesture
-  kinect.addGesture(TRACKING_GESTURE);
 }
 
 
 void draw() {
-  
   // Draw a line down the bottom of the page with a full stop
   // TODO: Move these to constants
   background(#203F74);
@@ -184,14 +188,16 @@ void draw() {
   
   // We need to decide whether we are moving or not
   if (selectedWord >= 0) {
-    
     // We're currently moving this word
     wordTiles[selectedWord].updatePosition(mappedHandVector);
     
     // Also check to see if we're in a drop zone (or close to one)
     detectDropZone(mappedHandVector);
-  } else {
     
+    // detect flick for dropping
+    detectFlick(mappedHandVector);
+    
+  } else {
     // Detect if we are selecting a word
     detectSelectingWord(mappedHandVector);
   }
@@ -219,8 +225,32 @@ void draw() {
   }
 }
 
-void detectSelectingWord(PVector handVector) {
+void detectFlick(PVector position) {
+  // If no word is selected or the ghost box is on then get out
+  if (selectedWord < 0 || ghostDropBox.on)
+    return;
+ 
+  // Figure out if we do not have a last position yet
+  if (lastPosition.x - 0.0 < 0.01 && lastPosition.y - 0.0 < 0.01) {
+    lastPosition.x = position.x;
+    lastPosition.y = position.y;
+    return; 
+  } 
   
+  // Measure the distance
+  float dist = dist(lastPosition.x, lastPosition.y, position.x, position.y);
+  if (dist >= FLICK_DELTA_REQUIREMENT) {
+    // Drop it at the last position
+    wordTiles[selectedWord].updatePosition(lastPosition);
+    selectedWord = -1;
+  }
+  
+  // Set the last position
+  lastPosition.x = position.x;
+  lastPosition.y = position.y;
+}
+
+void detectSelectingWord(PVector position) {
   // If we have one selected - gtfo
   if (selectedWord >= 0)
     return;
@@ -228,7 +258,7 @@ void detectSelectingWord(PVector handVector) {
   // Work out if which one we are currently considering
   int consider = -1;
   for (int i = 0; i < wordTiles.length; i++) {
-    if (wordTiles[i].containsPoint(handVector)) {
+    if (wordTiles[i].containsPoint(position)) {
       consider = i;
       break;
     }
@@ -242,12 +272,15 @@ void detectSelectingWord(PVector handVector) {
       println("selecting word " + wordTiles[consideringMovingWord].displayText);
       selectedWord = consideringMovingWord;
       consideringMovingWord = -1;
+      // Set the last position
+      lastPosition.x = position.x;
+      lastPosition.y = position.y;
       
       // If this was previously selected then remove it from the drop box
       println("checking to see if we need to remove it from the line (" + wordTiles[selectedWord].tag + ")");
       for (int i = 0; i < droppedWords.size(); i++) {
         Button c = (Button)droppedWords.get(i);
-        println("button at " + i + " tag = " + c.tag + " " + c.displayText);
+        //println("button at " + i + " tag = " + c.tag + " " + c.displayText);
         if (c.tag == wordTiles[selectedWord].tag) {
           println("found it at position " + i);
           // Remove it from the array - and update the rest of the dropped words
@@ -283,8 +316,7 @@ void detectSelectingWord(PVector handVector) {
   }
 }
 
-void detectDropZone(PVector handVector) {
-  
+void detectDropZone(PVector position) {
   // If nothing is selected then return
   if (selectedWord < 0) return;
   
@@ -347,7 +379,6 @@ void detectDropZone(PVector handVector) {
 }
 
 boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector v3, int tag) {
-  
   // Check to see if any of these contains our word
   if (selected.containsPoint(v1) || selected.containsPoint(v2) || selected.containsPoint(v3)) {
     // If so, we create a drop box ghost (if not already there) and start the timer
@@ -398,26 +429,22 @@ boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector 
 // gesture events
 
 void onRecognizeGesture(String gesture, PVector idPosition, PVector endPosition) {
-  
   println(gesture + ", idPosition: " + idPosition + ", endPosition:" + endPosition);
   kinect.removeGesture(TRACKING_GESTURE); 
   kinect.startTrackingHands(endPosition);
 }
 
 void onProgressGesture(String strGesture, PVector position, float progress) {
-  
   //println("onProgressGesture - strGesture: " + strGesture + ", position: " + position + ", progress:" + progress);
 }
 
 //hand event
 void onCreateHands(int handId, PVector pos, float time) {
-  
   println("onCreateHands - handId: " + handId + ", pos: " + pos);
   handVector = pos;
 }
 
 void onUpdateHands(int handId, PVector pos, float time) {
-  
   //println("onUpdateHandsCb - handId: " + handId + ", pos: " + pos);
   handVector = pos;
 }
