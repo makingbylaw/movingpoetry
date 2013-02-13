@@ -17,6 +17,9 @@ class Button {
   // Apply a tag to the button if necessary  
   int tag;
   
+  // Optional noise parameter for skewing button placement (store only)
+  float noise;
+  
   color outlineColor;
   color textColor;
   color fillColor;

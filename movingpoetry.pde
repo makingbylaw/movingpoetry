@@ -32,6 +32,9 @@ final static int MAX_WORD_AREA_WIDTH = 600;
 final static int MAX_WORD_AREA_HEIGHT = 300;
 final static int WORD_HEIGHT = 30; // The word height
 final static int WORD_PADDING = 20;  // Spacing between the word and its box
+// Noise to give the effect of scattering the words on the line
+final static int MINIMUM_LINE_NOISE = 0; // 0 is on the line
+final static int MAXIMUM_LINE_NOISE = 15; // The higher this is, the more noise
 
 // Colors
 final static color WORD_COLOR_SELECTING = #333333;
@@ -42,7 +45,7 @@ final static int CURSOR_SIZE = 10; // The size of the cursor
 final static int TIME_BEFORE_SELECTION = 1000; // Time in ms
 final static int TIME_BEFORE_DROP = 1000; // Time in ms
 
-// Set to enable/disable the mouse
+// Set to enable/disable the mouse. Set this to false to use the Kinect
 final static boolean ENABLE_MOUSE = true;
 
 // Gesture constants
@@ -122,6 +125,7 @@ void setup() {
     wordTiles[i] = new Button(x, y, w, h); 
     wordTiles[i].displayText = words[i];
     wordTiles[i].tag = i;
+    wordTiles[i].noise = random(MINIMUM_LINE_NOISE, MAXIMUM_LINE_NOISE);
   }
   println("Scattered words with " + numberOfConflicts + " conflicts in " + (millis() - startTime) + "ms");
   
@@ -418,6 +422,7 @@ boolean checkPointsForGhostBox(Button selected, PVector v1, PVector v2, PVector 
       println("Enabling ghost box at " + v1.x + " for " + selected.displayText);
       ghostDropBox.on = true;
       ghostDropBox.x = v1.x;
+      ghostDropBox.y = LINE_START_Y - WORD_HEIGHT - selected.noise;
       ghostDropBox.w = selected.w;
       ghostDropBox.tag = tag;
       ghostBoxShownSince = millis();
