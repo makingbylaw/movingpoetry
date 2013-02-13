@@ -31,6 +31,7 @@ final static int WORD_START_X = 44;
 final static int MAX_WORD_AREA_WIDTH = 600;
 final static int MAX_WORD_AREA_HEIGHT = 300;
 final static int WORD_HEIGHT = 30; // The word height
+final static int WORD_PADDING = 20;  // Spacing between the word and its box
 
 // Colors
 final static color WORD_COLOR_SELECTING = #333333;
@@ -80,6 +81,7 @@ void setup() {
   // Set the font first of all
   font = loadFont("KhmerMN-Bold-48.vlw");
   textFont(font);
+  textSize(WORD_HEIGHT);
 
   // A loop to evenly space out the words buttons along the window
   int numberOfConflicts = 0;
@@ -89,7 +91,7 @@ void setup() {
     // Work out the best x and y positions to use
     boolean positionFound = false;
     float x = 0, y = 0;
-    float w = textWidth(words[i]);
+    float w = textWidth(words[i]) + WORD_PADDING;
     float h = WORD_HEIGHT;
     
     // Find a position
