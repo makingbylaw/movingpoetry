@@ -29,6 +29,19 @@ class Button {
   
   final static color DEFAULT_OUTLINE_COLOR = #E3E7EA;
   final static color DEFAULT_TEXT_COLOR = #E8EDF5;
+  
+  // Variable keeping track of whether it is animating
+  boolean isAnimating = false;
+  // The start of the animation time
+  // Used for calculating sine
+  int startAnimationTime = 0;
+  
+  // The total time an animation lasts for
+  final static int TOTAL_ANIMATION_TIME = 3000; // 3 s
+  // The maximum radii to animate
+  final static int MAX_RADII = 20;
+  // The animation color to change the text to
+  final static color ANIMATE_TO_COLOR = #ffffa5;  
 
   // Constructor initializes all variables
   Button(float tempX, float tempY, float tempW, float tempH) {    
@@ -95,6 +108,23 @@ class Button {
     if (coordinates == null && coordinates.length < 2) return false;
     return this.containsPoint(coordinates[0], coordinates[1]); 
   }
+  
+  /*
+   * Starts animating the button
+   */
+  void startAnimating() {
+    println("Starting to animate " + displayText);
+    isAnimating = true;
+    startAnimationTime = millis();
+  }
+  
+  /*
+   * Forces the button to stop animating. This is called every time 
+   * it is hovered over or selected
+   */
+  void stopAnimating() {
+    isAnimating = false;
+  }
 
   // Draw the buttons
   void display() {
@@ -112,13 +142,37 @@ class Button {
     } else {
       noFill();
     }
+        
+    // Calculate the radii and text color
+    float radii = 0.0;
+    color tc = textColor;
+    if (isAnimating) {
+      // If we've been animating for a while then stop animating
+      int animationDuration = millis() - startAnimationTime;
+      if (animationDuration > TOTAL_ANIMATION_TIME) {
+        isAnimating = false;
+      } else {
+        // Calculate the path depending on the position on the Sine curve.
+        // The min radii is 0 and the max radii is MAX_RADII
+        // We'll use the absolute value of the sine curve so that it looks like a 
+        // smooth animation.
+        // In regards to pi, we define that 2pi = TOTAL_ANIMATION_TIME and 0 = 0
+        // This also means that pi = TOTAL_ANIMATION_TIME/2
+        float angle = PI * ((animationDuration*2.0)/TOTAL_ANIMATION_TIME);
+        float x = sin(angle);
+        radii = abs(x * MAX_RADII);
+        
+        // Also work out the text color
+        tc = (int)(abs(x) * ANIMATE_TO_COLOR) + textColor;
+      }
+    }
     
     // The color changes based on the state of the button
-    rect(x, y, w, h);
+    rect(x, y, w, h, radii);
 
     //draw the text
     if (displayText != null) {
-      fill(textColor);
+      fill(tc);
       text(displayText, (x+(w/2)), (y+(h/2)));
       textSize(h);
       textAlign(CENTER, CENTER);

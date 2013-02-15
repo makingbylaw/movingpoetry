@@ -54,6 +54,11 @@ final static String TRACKING_GESTURE = "RaiseHand";
 // Flick constants
 final static int FLICK_DELTA_REQUIREMENT = 50; // in pixels
 
+// Animation constants
+final static int ANIMATE_EVERY = 5000; // Animate a randome word every x seconds
+// Because time is an inaccurate measurement, this provides a margin of error
+final static int ANIMATION_EPSILON = 50; 
+
 // An array of "buttons" to hold each word
 final Button[] wordTiles = new Button[words.length];
 final Button cursor = new Button(10, 10, CURSOR_SIZE, CURSOR_SIZE);
@@ -192,6 +197,59 @@ void draw() {
   // Display the cursor
   cursor.display();
   
+  // Figure out if we should animate anything
+  if (millis() % ANIMATE_EVERY < ANIMATION_EPSILON) {
+    boolean somethingIsAnimating = false;
+    for (int i = 0; i < wordTiles.length; i++) {
+      if (wordTiles[i].isAnimating) {
+        somethingIsAnimating = true;
+        break; 
+      }
+    }
+    
+    // Only select something if nothing else is animating
+    if (!somethingIsAnimating) {
+      
+      // Select a random word that isn't currently selected or dropped
+      boolean foundWord = false;
+      int attempts = 0;
+      int animate = -1;
+      while (!foundWord && attempts < 5) {
+        
+        // Select a random word to check
+        int check = (int)random(0, wordTiles.length);
+        
+        // Check it isn't selected or being considered
+        if (check != selectedWord && check != consideringMovingWord) {
+          
+          // Check if the word is dropped too
+          boolean isDroppedWord = false;
+          for (int i = 0; i < droppedWords.size(); i++) {
+            if (wordTiles[check].tag == ((Button)droppedWords.get(i)).tag) {
+              isDroppedWord = true;
+              break;
+            }
+          }
+          
+          // It's not dropped - we found one! 
+          if (!isDroppedWord) {
+            foundWord = true;
+            animate = check;
+          }
+        }
+        
+        // If nothing is found, increase our attempt variable
+        // We do this just in case for an exit strategy
+        if (!foundWord)
+          attempts++;
+      }
+      
+      // If we should animate something then do it
+      if (animate >= 0)
+        wordTiles[animate].startAnimating(); 
+    }
+  } 
+  
   // We need to decide whether we are moving or not
   if (selectedWord >= 0) {
     // We're currently moving this word
@@ -317,6 +375,7 @@ void detectSelectingWord(PVector position) {
     if (consider >= 0) {
       consideringMovingWordSince = millis();
       println("considering moving word " + wordTiles[consider].displayText);
+      wordTiles[consider].stopAnimating();
     }
     consideringMovingWord = consider;
   }
