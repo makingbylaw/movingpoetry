@@ -42,6 +42,8 @@ class Button {
   final static int MAX_RADII = 20;
   // The animation color to change the text to
   final static color ANIMATE_TO_COLOR = #ffffa5;  
+  // The maximum change in font size (-ve and +ve)
+  final static int FONT_SIZE_MARGIN = 5;
 
   // Constructor initializes all variables
   Button(float tempX, float tempY, float tempW, float tempH) {    
@@ -146,6 +148,7 @@ class Button {
     // Calculate the radii and text color
     float radii = 0.0;
     color tc = textColor;
+    float textSize = h;
     if (isAnimating) {
       // If we've been animating for a while then stop animating
       int animationDuration = millis() - startAnimationTime;
@@ -159,8 +162,14 @@ class Button {
         // In regards to pi, we define that 2pi = TOTAL_ANIMATION_TIME and 0 = 0
         // This also means that pi = TOTAL_ANIMATION_TIME/2
         float angle = PI * ((animationDuration*2.0)/TOTAL_ANIMATION_TIME);
+        // Get the sin value (between -1 and 1)
         float x = sin(angle);
-        radii = abs(x * MAX_RADII);
+        
+        // Calculate the radii
+        //radii = abs(x * MAX_RADII);
+        
+        // Change the text size
+        textSize = h + x * FONT_SIZE_MARGIN;
         
         // Also work out the text color
         tc = (int)(abs(x) * ANIMATE_TO_COLOR) + textColor;
@@ -172,10 +181,14 @@ class Button {
 
     //draw the text
     if (displayText != null) {
+      // Set the text color
       fill(tc);
-      text(displayText, (x+(w/2)), (y+(h/2)));
-      textSize(h);
+      // Set the text size
+      textSize(textSize);
+      // Set the alignment
       textAlign(CENTER, CENTER);
+      // Draw the text
+      text(displayText, (x+(w/2)), (y+(h/2)));
     }
   }
 } 
